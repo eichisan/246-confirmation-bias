@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>2–4–6: Hypothesis Testing Game</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.35; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .sub { margin: 0 0 18px; color: #444; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin: 14px 0; background: #fff; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #f2f2f2; font-weight: 600; }
+    label { font-weight: 600; }
+    input[type="text"] { width: 320px; max-width: 100%; padding: 10px 12px; border: 1px solid #bbb; border-radius: 10px; font-size: 16px; }
+    button { padding: 10px 12px; border: 1px solid #888; border-radius: 10px; background: #f7f7f7; cursor: pointer; font-size: 15px; }
+    button:hover { background: #eee; }
+    button.primary { border-color: #2a62d7; background: #2a62d7; color: #fff; }
+    button.primary:hover { background: #1f53bf; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .msg { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fafafa; }
+    .yes { border-color: #2d7a2d; background: #f1fbf1; }
+    .no { border-color: #b03636; background: #fff3f3; }
+    .hint { color: #444; font-size: 14px; margin-top: 8px; }
+    .small { color: #666; font-size: 13px; }
+    .hidden { display: none; }
+    .mcq { margin-top: 10px; }
+    .mcq label { font-weight: 500; display: block; margin: 8px 0; }
+    .footer { margin-top: 14px; color: #666; font-size: 13px; }
+    .log { max-height: 240px; overflow: auto; border: 1px solid #eee; border-radius: 10px; padding: 10px; background: #fcfcfc; }
+    .logline { padding: 6px 0; border-bottom: 1px dashed #eee; }
+    .logline:last-child { border-bottom: none; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .codebox { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+    .codepill { padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background:#fafafa; }
+    .toast { margin-top:10px; color:#444; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Hypothesis Testing Game: 2–4–6</h1>
+    <p class="sub">
+      You will see a sequence that follows a rule. Your job is to figure out the rule by proposing test sequences.
+      The system will respond <strong>Yes</strong> or <strong>No</strong>. After <strong>5 tests</strong>, you may click
+      <strong>Propose hypothesis</strong>.
+    </p>
+
+    <div class="card">
+      <div class="row">
+        <span class="pill">Given sequence: <span class="mono">2, 4, 6</span></span>
+        <span class="pill">Attempts: <span id="attemptCount">0</span></span>
+        <span class="pill">Min needed: <span class="mono">5</span></span>
+      </div>
+      <p class="small" style="margin-top:10px;">
+        Tip: The fastest way to learn is to try sequences that could <em>disprove</em> your current idea.
+      </p>
+    </div>
+
+    <!-- TESTING MODE -->
+    <div id="testingPanel" class="card">
+      <h2 style="margin:0 0 10px; font-size:18px;">Test a sequence</h2>
+      <div class="row">
+        <div>
+          <label for="seqInput">Enter three numbers (comma or space separated):</label><br/>
+          <input id="seqInput" type="text" placeholder="e.g., 4, 6, 8" autocomplete="off" />
+        </div>
+        <div style="margin-top:22px;">
+          <button id="testBtn" class="primary">Test my sequence</button>
+          <button id="proposeBtn" disabled title="Complete 5 tests to unlock">Propose hypothesis (locked)</button>
+          <button id="resetBtn" title="Clears attempts and history">Reset</button>
+        </div>
+      </div>
+
+      <div id="testMsg" class="msg hidden"></div>
+      <div class="hint" id="testHint"></div>
+
+      <div style="margin-top:14px;">
+        <details>
+          <summary style="cursor:pointer; font-weight:600;">Show history</summary>
+          <div class="log" id="historyLog" style="margin-top:10px;"></div>
+          <div class="footer">History is stored only in your browser for this page. Refreshing may clear it.</div>
+        </details>
+      </div>
+    </div>
+
+    <!-- HYPOTHESIS MODE -->
+    <div id="hypothesisPanel" class="card hidden">
+      <h2 style="margin:0 0 10px; font-size:18px;">Propose a hypothesis</h2>
+      <p style="margin:0 0 8px;">
+        Choose the rule that best explains which sequences get a <strong>Yes</strong>.
+      </p>
+
+      <div class="mcq" id="mcq"></div>
+
+      <div class="row" style="margin-top:10px;">
+        <button id="submitHypBtn" class="primary">Submit hypothesis</button>
+        <button id="backToTestBtn">Back to testing</button>
+      </div>
+
+      <div id="hypMsg" class="msg hidden"></div>
+      <div class="hint" id="hypHint"></div>
+    </div>
+
+    <!-- SUCCESS PANEL -->
+    <div id="successPanel" class="card hidden">
+      <h2 style="margin:0 0 10px; font-size:18px;">Rule confirmed</h2>
+      <p style="margin:0 0 8px;">
+        ✅ Correct. The rule is:
+      </p>
+      <p class="pill" style="display:inline-block;">
+        <span class="mono" id="revealedRule"></span>
+      </p>
+
+      <div style="margin-top:14px;">
+        <h3 style="margin:0 0 8px; font-size:16px;">Completion code (submit this in Canvas)</h3>
+        <div class="codebox">
+          <div class="codepill">
+            Code: <span class="mono" id="completionCode">—</span>
+          </div>
+          <button id="copyCodeBtn" class="primary">Copy code</button>
+        </div>
+        <div class="toast" id="copyToast"></div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <h3 style="margin:0 0 8px; font-size:16px;">Quick reflection</h3>
+        <ol style="margin:0; padding-left:20px;">
+          <li>What was your first hypothesis, and what tests did you use to evaluate it?</li>
+          <li>Which test was most informative, and why?</li>
+          <li>How did confirmation bias show up during your testing?</li>
+          <li>How does this relate to scientific hypothesis testing?</li>
+        </ol>
+        <p class="small" style="margin-top:10px;">
+          (Your instructor may ask you to submit these reflections separately in Canvas.)
+        </p>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button id="playAgainBtn">Play again (new attempts + new code)</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ----------------------------
+  // Configuration
+  // ----------------------------
+  const MIN_TESTS_TO_UNLOCK = 5;
+
+  // True rule: strict ascending order (a < b < c).
+  function fitsRule(triple) {
+    const [a, b, c] = triple;
+    return a < b && b < c;
+  }
+  const RULE_TEXT = "Any three numbers in ascending order (a < b < c).";
+
+  // Hypotheses shown to students (exactly ONE must be correct)
+  const hypotheses = [
+    { id: "h1", text: "The numbers must be three even numbers in ascending order.", correct: false },
+    { id: "h2", text: "The numbers must increase by 2 each time.", correct: false },
+    { id: "h3", text: "The numbers must be positive integers in ascending order.", correct: false },
+    { id: "h4", text: "The numbers can be any three numbers in ascending order.", correct: true },
+    { id: "h5", text: "The numbers must be in ascending order and all multiples of 2.", correct: false },
+    { id: "h6", text: "The numbers must be consecutive integers in ascending order.", correct: false },
+  ];
+
+  // ----------------------------
+  // DOM
+  // ----------------------------
+  const testingPanel = document.getElementById("testingPanel");
+  const hypothesisPanel = document.getElementById("hypothesisPanel");
+  const successPanel = document.getElementById("successPanel");
+
+  const seqInput = document.getElementById("seqInput");
+  const testBtn = document.getElementById("testBtn");
+  const proposeBtn = document.getElementById("proposeBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  const testMsg = document.getElementById("testMsg");
+  const testHint = document.getElementById("testHint");
+
+  const attemptCountEl = document.getElementById("attemptCount");
+  const historyLog = document.getElementById("historyLog");
+
+  const mcq = document.getElementById("mcq");
+  const submitHypBtn = document.getElementById("submitHypBtn");
+  const backToTestBtn = document.getElementById("backToTestBtn");
+  const hypMsg = document.getElementById("hypMsg");
+  const hypHint = document.getElementById("hypHint");
+
+  const revealedRule = document.getElementById("revealedRule");
+  const completionCodeEl = document.getElementById("completionCode");
+  const copyCodeBtn = document.getElementById("copyCodeBtn");
+  const copyToast = document.getElementById("copyToast");
+
+  const playAgainBtn = document.getElementById("playAgainBtn");
+
+  // ----------------------------
+  // State
+  // ----------------------------
+  let attempts = 0;
+  const history = [];
+  let completionCode = "";
+
+  // ----------------------------
+  // Helpers
+  // ----------------------------
+  function show(el) { el.classList.remove("hidden"); }
+  function hide(el) { el.classList.add("hidden"); }
+
+  function setMessage(el, text, kind) {
+    el.textContent = text;
+    el.className = "msg " + (kind || "");
+    show(el);
+  }
+
+  function clearMessage(el) {
+    el.textContent = "";
+    el.className = "msg hidden";
+  }
+
+  function setCountsAndUnlock() {
+    attemptCountEl.textContent = String(attempts);
+
+    if (attempts >= MIN_TESTS_TO_UNLOCK) {
+      proposeBtn.disabled = false;
+      proposeBtn.textContent = "Propose hypothesis";
+      proposeBtn.title = "";
+    } else {
+      const remaining = MIN_TESTS_TO_UNLOCK - attempts;
+      proposeBtn.disabled = true;
+      proposeBtn.textContent = `Propose hypothesis (locked: ${remaining} more test${remaining === 1 ? "" : "s"})`;
+      proposeBtn.title = `Complete ${remaining} more test${remaining === 1 ? "" : "s"} to unlock`;
+    }
+  }
+
+  function renderHistory() {
+    if (history.length === 0) {
+      historyLog.innerHTML = "<div class='small'>No tests yet.</div>";
+      return;
+    }
+    historyLog.innerHTML = history.map(item => {
+      const yn = item.fits ? "Yes" : "No";
+      const cls = item.fits ? "yes" : "no";
+      return `<div class="logline">
+        <span class="mono">${item.raw}</span>
+        &nbsp;→&nbsp;<span class="${cls}" style="padding:2px 8px;border-radius:999px;border:1px solid #ddd;">${yn}</span>
+      </div>`;
+    }).join("");
+  }
+
+  function parseTriple(str) {
+    const parts = str.trim().split(/[\s,]+/).filter(Boolean);
+    if (parts.length !== 3) return { ok: false, error: "Please enter exactly three numbers." };
+
+    const nums = parts.map(p => Number(p));
+    if (nums.some(n => Number.isNaN(n))) return { ok: false, error: "All three entries must be valid numbers." };
+
+    return { ok: true, nums, normalized: nums.join(", ") };
+  }
+
+  function goToTesting() {
+    hide(hypothesisPanel);
+    hide(successPanel);
+    show(testingPanel);
+    clearMessage(hypMsg);
+    hypHint.textContent = "";
+    seqInput.focus();
+  }
+
+  function goToHypothesis() {
+    hide(testingPanel);
+    hide(successPanel);
+    show(hypothesisPanel);
+    clearMessage(testMsg);
+    testHint.textContent = "";
+    clearMessage(hypMsg);
+    hypHint.textContent = "";
+  }
+
+  function goToSuccess() {
+    hide(testingPanel);
+    hide(hypothesisPanel);
+    show(successPanel);
+    revealedRule.textContent = RULE_TEXT;
+    completionCodeEl.textContent = completionCode;
+  }
+
+  function buildMCQ() {
+    const shuffled = [...hypotheses].sort(() => Math.random() - 0.5);
+    mcq.innerHTML = shuffled.map(h => `
+      <label>
+        <input type="radio" name="hyp" value="${h.id}">
+        ${h.text}
+      </label>
+    `).join("");
+  }
+
+  function generateCompletionCode() {
+    // Not “secure” (doesn’t need to be), but unique-looking for proof-of-completion.
+    // Format: BIO-246-XXXXXX where X are base36 characters.
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const time = Date.now().toString(36).slice(-4).toUpperCase();
+    return `BIO-246-${rand}${time}`;
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copyToast.textContent = "Copied to clipboard.";
+      setTimeout(() => (copyToast.textContent = ""), 1500);
+    } catch {
+      // Fallback: select text (not perfect, but works broadly)
+      copyToast.textContent = "Copy failed—please select the code and copy it manually.";
+      setTimeout(() => (copyToast.textContent = ""), 2500);
+    }
+  }
+
+  // ----------------------------
+  // Actions
+  // ----------------------------
+  function testSequence() {
+    clearMessage(testMsg);
+    testHint.textContent = "";
+
+    const raw = seqInput.value;
+    const parsed = parseTriple(raw);
+    if (!parsed.ok) {
+      setMessage(testMsg, parsed.error, "no");
+      return;
+    }
+
+    attempts += 1;
+    const fits = fitsRule(parsed.nums);
+
+    history.unshift({ raw: parsed.normalized, fits });
+    if (history.length > 30) history.pop();
+
+    setCountsAndUnlock();
+    renderHistory();
+
+    if (fits) {
+      setMessage(testMsg, "Yes, this fits the rule.", "yes");
+      testHint.textContent = "If you’re feeling confident, try a test that could prove your idea wrong (negatives, odds, decimals, or very uneven spacing).";
+    } else {
+      setMessage(testMsg, "No, this does not fit the rule.", "no");
+      testHint.textContent = "Good. “No” answers are often the fastest path to narrowing down the rule.";
+    }
+    seqInput.select();
+  }
+
+  function submitHypothesis() {
+    clearMessage(hypMsg);
+    hypHint.textContent = "";
+
+    const selected = document.querySelector('input[name="hyp"]:checked');
+    if (!selected) {
+      setMessage(hypMsg, "Please choose one hypothesis before submitting.", "no");
+      return;
+    }
+
+    const h = hypotheses.find(x => x.id === selected.value);
+    if (!h) {
+      setMessage(hypMsg, "Something went wrong selecting your hypothesis. Try again.", "no");
+      return;
+    }
+
+    if (h.correct) {
+      completionCode = generateCompletionCode();
+      goToSuccess();
+    } else {
+      setMessage(hypMsg, "Not quite. That hypothesis is too narrow.", "no");
+      hypHint.textContent = "Return to testing and try sequences that would disconfirm your current idea (odd numbers, negatives, decimals, or unusual spacing).";
+    }
+  }
+
+  function resetAll() {
+    attempts = 0;
+    history.length = 0;
+    completionCode = "";
+    completionCodeEl.textContent = "—";
+    copyToast.textContent = "";
+
+    seqInput.value = "";
+    clearMessage(testMsg);
+    testHint.textContent = "";
+    clearMessage(hypMsg);
+    hypHint.textContent = "";
+
+    setCountsAndUnlock();
+    renderHistory();
+    goToTesting();
+  }
+
+  // ----------------------------
+  // Events
+  // ----------------------------
+  testBtn.addEventListener("click", testSequence);
+
+  proposeBtn.addEventListener("click", () => {
+    if (attempts < MIN_TESTS_TO_UNLOCK) {
+      // Extra guard (button should be disabled anyway)
+      setMessage(testMsg, `Please complete ${MIN_TESTS_TO_UNLOCK} tests before proposing a hypothesis.`, "no");
+      return;
+    }
+    buildMCQ();
+    goToHypothesis();
+  });
+
+  submitHypBtn.addEventListener("click", submitHypothesis);
+  backToTestBtn.addEventListener("click", goToTesting);
+
+  resetBtn.addEventListener("click", resetAll);
+  playAgainBtn.addEventListener("click", resetAll);
+
+  copyCodeBtn.addEventListener("click", () => {
+    if (!completionCode) return;
+    copyToClipboard(completionCode);
+  });
+
+  seqInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") testSequence();
+  });
+
+  // ----------------------------
+  // Init
+  // ----------------------------
+  setCountsAndUnlock();
+  renderHistory();
+  goToTesting();
+})();
+</script>
+</body>
+</html>
